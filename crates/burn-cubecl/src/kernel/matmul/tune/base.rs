@@ -2,6 +2,7 @@ use burn_tensor::{Element, ElementConversion};
 use cubecl::{
     linalg::matmul::{kernels::tiling2d::Tiling2dConfig, Strategy},
     tune::{local_tuner, LocalTuner, TunableSet},
+    CubeCount,
 };
 
 use crate::{
@@ -77,8 +78,22 @@ fn matmul_tiling2d<R: CubeRuntime, E: FloatElement>(
     rhs: CubeTensor<R>,
     out: CubeTensor<R>,
 ) -> Result<(), String> {
+    let config = Tiling2dConfig::default();
+
+    let output_shape = out.shape.dims.as_slice();
+    let rank = output_shape.len();
+    let num_rows = *output_shape.get(rank - 2).unwrap();
+    let num_cols = *output_shape.get(rank - 1).unwrap();
+    let cubes_x = f32::ceil(num_rows as f32 / config.block_size_m as f32) as u32;
+    let cubes_y = f32::ceil(num_cols as f32 / config.block_size_n as f32) as u32;
+
+    let (max_x, max_y, max_z) = R::max_cube_count();
+    if cubes_x > max_x || cubes_y > max_y {
+        return Err("Cube size too large".into());
+    }
+
     cubecl::linalg::matmul::launch_ref::<R, E>(
-        &Strategy::Tiling2D(Tiling2dConfig::default()),
+        &Strategy::Tiling2D(config),
         &lhs.client,
         &lhs.as_handle_ref(),
         &rhs.as_handle_ref(),
