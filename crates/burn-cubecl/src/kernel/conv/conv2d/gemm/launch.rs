@@ -109,7 +109,6 @@ pub fn conv2d_gemm_with_algo<
 where
     SP::EG: CubeElement,
 {
-    println!("Checking for CMMA algo");
     if options.groups != 1 {
         return Err(ConvLaunchError::Groups(options.groups));
     }
@@ -211,10 +210,8 @@ where
     });
 
     if let Err(err) = Alg::GlobalConvolution::check_availability::<R, SP>(&input.client, &config) {
-        println!("CMMA failed: {:?}", err);
         return Err(ConvLaunchError::Matmul(err.into()));
     }
-    println!("Launching for CMMA algo");
     unsafe {
         Alg::GlobalConvolution::launch_unchecked::<SP, R>(
             &input.client,
@@ -227,7 +224,6 @@ where
             config,
         );
     }
-    println!("Completed CMMA algo");
 
     // Reset to NCHW
     let out = reshape(out, Shape::new([batch_size, out_h, out_w, out_channels]));
