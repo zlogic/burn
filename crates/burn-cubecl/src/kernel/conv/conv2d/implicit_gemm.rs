@@ -80,7 +80,7 @@ pub fn conv2d_implicit_gemm<R: CubeRuntime, F: FloatElement>(
 
     // If input is contiguous NCHW, use custom transpose kernel
     let input = match input.is_contiguous() {
-        true => nchw_to_nhwc::<R, F>(input),
+        true => nchw_to_nhwc::<R, F>(input).ok_or_else(|| ConvLaunchError::Unknown)?,
         false => into_contiguous(permute(input, &[0, 2, 3, 1])),
     };
     let weight = into_contiguous(permute(weight, &[2, 3, 1, 0]));

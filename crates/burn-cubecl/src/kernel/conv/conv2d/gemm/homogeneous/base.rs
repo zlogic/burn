@@ -16,7 +16,7 @@ use cubecl::{
                 },
                 Ident, InvalidConfigError, MatrixLayout, StageTiling,
             },
-            kernels::matmul::AdvancedConfig,
+            kernels::{matmul::AdvancedConfig, MatmulAvailabilityError},
         },
         tensor::{ReadWrite, VirtualTensor},
     },
@@ -192,6 +192,13 @@ where
 
     fn check_config(config: &Self::Config) -> Result<(), InvalidConfigError> {
         SMM::check_config(&config.to_smm_config())
+    }
+
+    fn check_availability<R: Runtime, CS: ConvPrecision>(
+        client: &ComputeClient<R::Server, R::Channel>,
+        config: &Self::Config,
+    ) -> Result<(), MatmulAvailabilityError> {
+        SMM::check_availability::<R, (CS::EG, CS::ES, CS::EA)>(client, &config.to_smm_config())
     }
 
     fn make_config(

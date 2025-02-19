@@ -13,6 +13,7 @@ use cubecl::{
 use half::{bf16, f16};
 
 use super::{
+    base::ConvolutionConfigFactory,
     precision::ConvPrecision,
     selection::{Balanced, ConvSelector, Large},
 };
@@ -108,6 +109,7 @@ pub fn conv2d_gemm_with_algo<
 where
     SP::EG: CubeElement,
 {
+    println!("Checking for CMMA algo");
     if options.groups != 1 {
         return Err(ConvLaunchError::Groups(options.groups));
     }
@@ -131,7 +133,7 @@ where
     );
 
     let input = match input.is_contiguous() {
-        true => nchw_to_nhwc::<R, SP::EG>(input),
+        true => nchw_to_nhwc::<R, SP::EG>(input).ok_or_else(|| ConvLaunchError::Unknown)?,
         false => into_contiguous(permute(input, &[0, 2, 3, 1])),
     };
     let weight = into_contiguous(permute(weight, &[2, 3, 1, 0]));
@@ -208,6 +210,11 @@ where
         empty_device::<R, SP::EG>(input.client.clone(), input.device.clone(), Shape::new([1]))
     });
 
+    if let Err(err) = Alg::GlobalConvolution::check_availability::<R, SP>(&input.client, &config) {
+        println!("CMMA failed: {:?}", err);
+        return Err(ConvLaunchError::Matmul(err.into()));
+    }
+    println!("Launching for CMMA algo");
     unsafe {
         Alg::GlobalConvolution::launch_unchecked::<SP, R>(
             &input.client,
@@ -220,6 +227,7 @@ where
             config,
         );
     }
+    println!("Completed CMMA algo");
 
     // Reset to NCHW
     let out = reshape(out, Shape::new([batch_size, out_h, out_w, out_channels]));

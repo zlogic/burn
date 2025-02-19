@@ -18,7 +18,7 @@ use crate::{
 ///
 /// The input in NHWC format
 ///
-pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> CubeTensor<R> {
+pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> Option<CubeTensor<R>> {
     let tiles_per_block = 8;
     let warp_size = 32;
     let tile_dim = 16;
@@ -53,6 +53,12 @@ pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> Cub
         z: 1,
     };
     let cube_count = CubeCount::Static(cube_count_x, cube_count_y, cube_count_z);
+    if let CubeCount::Static(x, y, z) = cube_count {
+        let (max_x, max_y, max_z) = R::max_cube_count();
+        if x > max_x || y > max_y && z > max_z {
+            return None;
+        }
+    }
 
     let in_vec = max_vectorization(&input);
     let out_vec = R::supported_line_sizes()
@@ -73,7 +79,7 @@ pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> Cub
         )
     };
 
-    out
+    Some(out)
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
