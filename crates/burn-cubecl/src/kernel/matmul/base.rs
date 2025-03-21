@@ -15,7 +15,7 @@ pub enum MatmulStrategy {
 }
 
 impl MatmulStrategy {
-    pub fn default_from_im2col() -> Self {
+    pub fn default_nested() -> Self {
         // if autotune is enabled, default to autotune
         #[cfg(feature = "autotune")]
         return MatmulStrategy::Autotune(true);

@@ -300,7 +300,7 @@ fn execute_1x1_kernel<R: CubeRuntime, E: FloatElement>(
     let weight = reshape(weight, Shape::new([groups, out_c_per_grp, in_c_per_grp]));
     let in_shape = Shape::new([groups, in_c_per_grp, batch_size * height * width]);
     let input = reshape(input, in_shape);
-    let out = matmul::<R, E>(weight, input, None, MatmulStrategy::default_from_im2col())?;
+    let out = matmul::<R, E>(weight, input, None, MatmulStrategy::default_nested())?;
     let mut out = reshape(out, Shape::new([out_channels, batch_size, height, width]));
 
     if let Some(bias) = bias {
@@ -330,12 +330,7 @@ fn execute<R: CubeRuntime, E: FloatElement>(
     let columns = reshape(columns, Shape::new([groups, col_shape_0, col_shape_1]));
     let weight = reshape(weight, Shape::new([groups, out_c_per_group, col_shape_0]));
 
-    matmul::<R, E>(
-        weight,
-        columns,
-        Some(out),
-        MatmulStrategy::default_from_im2col(),
-    )?;
+    matmul::<R, E>(weight, columns, Some(out), MatmulStrategy::default_nested())?;
 
     Ok(())
 }

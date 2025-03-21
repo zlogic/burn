@@ -150,7 +150,7 @@ fn execute<R: CubeRuntime, E: FloatElement>(
     let input_shape = Shape::new([groups, input_ch_per_group, col_shape_1]);
     let input = reshape(input, input_shape);
 
-    let columns = matmul::<R, E>(weight, input, None, MatmulStrategy::default())?;
+    let columns = matmul::<R, E>(weight, input, None, MatmulStrategy::default_nested())?;
     let columns = reshape(columns, Shape::new([col_shape_0 * groups, col_shape_1]));
 
     col2im::<R, E>(
