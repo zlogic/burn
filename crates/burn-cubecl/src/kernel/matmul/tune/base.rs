@@ -35,6 +35,7 @@ pub fn matmul_autotune<R: CubeRuntime, E: FloatElement + Element>(
     lhs: CubeTensor<R>,
     rhs: CubeTensor<R>,
     out: Option<CubeTensor<R>>,
+    from_im2col: bool,
 ) -> Result<CubeTensor<R>, AutotuneError> {
     let output = out.unwrap_or_else(|| init_matmul_output::<R, E>(&lhs, &rhs));
 
@@ -42,10 +43,17 @@ pub fn matmul_autotune<R: CubeRuntime, E: FloatElement + Element>(
 
     static TUNER: LocalTuner<MatmulAutotuneKey, CubeTuneId> = local_tuner!();
 
-    let tunables = TunableSet::new(create_key::<R, E>, matmul_input_gen::<R, E>)
-        .with_tunable(matmul_tiling2d::<R, E>)
-        .with_tunable(matmul_accelerated::<R, E>)
-        .with_tunable(matmul_naive::<R, E>);
+    let tunables = TunableSet::new(create_key::<R, E>, matmul_input_gen::<R, E>);
+    let tunables = if !from_im2col {
+        tunables
+            .with_tunable(matmul_tiling2d::<R, E>)
+            .with_tunable(matmul_accelerated::<R, E>)
+            .with_tunable(matmul_naive::<R, E>)
+    } else {
+        tunables
+            .with_tunable(matmul_accelerated::<R, E>)
+            .with_tunable(matmul_naive::<R, E>)
+    };
 
     TUNER.execute(
         &CubeTuneId::new::<R>(&lhs.client, &lhs.device),
