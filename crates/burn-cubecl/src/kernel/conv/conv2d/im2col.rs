@@ -202,18 +202,6 @@ pub fn conv2d_im2col<R: CubeRuntime, E: FloatElement>(
     bias: Option<CubeTensor<R>>,
     options: ConvOptions<2>,
 ) -> Result<CubeTensor<R>, ConvLaunchError> {
-    #[cfg(all(feature = "autotune", not(target_os = "macos")))]
-    {
-        // Due to memory usage issues on dedicated graphics cards, this can cause
-        // device loss, and wgpu will become deadlocked.
-        // With debug builds, it panics with a
-        // "thread 'main' attempted to acquire a snatch lock recursively." error.
-        // See https://github.com/gfx-rs/wgpu/issues/6378 for the root cause.
-        // It might make sense to do another check here, like a number of dimensions.
-        // Or wait for something to flow downstream, like better batching.
-        return Err(ConvLaunchError::Unknown);
-    }
-
     let [batch_size, in_channels, in_height, in_width] = input.shape.dims();
     let [out_channels, _, kernel_h, kernel_w] = weight.shape.dims();
     let groups = options.groups;
@@ -240,6 +228,7 @@ pub fn conv2d_im2col<R: CubeRuntime, E: FloatElement>(
     }
 
     let batches_per_run = batches_per_run(batch_size, out_h, out_w)?;
+    println!("Batches per run {batches_per_run}");
     let matmul_shape = Shape::new([groups, out_c_per_group, batches_per_run * out_h * out_w]);
 
     let mut out = if batches_per_run != batch_size {
