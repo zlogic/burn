@@ -241,7 +241,6 @@ pub fn conv2d_im2col<R: CubeRuntime, E: FloatElement>(
     }
 
     let batches_per_run = batches_per_run(batch_size, out_h, out_w)?;
-    println!("Batches per run {batches_per_run}");
     let matmul_shape = Shape::new([groups, out_c_per_group, batches_per_run * out_h * out_w]);
 
     let mut out = if batches_per_run != batch_size {
