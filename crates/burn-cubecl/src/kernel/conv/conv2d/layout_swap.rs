@@ -94,11 +94,6 @@ pub fn nchw_to_nhwc_cube_count(shape: Shape) -> CubeCount {
     let cube_count_x = tiles_hw.div_ceil(block_tiles_x);
     let cube_count_z = batch_size as u32;
 
-    let cube_dim = CubeDim {
-        x: block_tiles_x * warp_size,
-        y: block_tiles_y,
-        z: 1,
-    };
     CubeCount::Static(cube_count_x, cube_count_y, cube_count_z)
 }
 
