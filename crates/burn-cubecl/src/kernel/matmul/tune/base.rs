@@ -50,9 +50,7 @@ pub fn matmul_autotune<R: CubeRuntime, E: FloatElement + Element>(
             .with_tunable(matmul_accelerated::<R, E>)
             .with_tunable(matmul_naive::<R, E>)
     } else {
-        tunables
-            .with_tunable(matmul_tiling2d::<R, E>)
-            .with_tunable(matmul_accelerated::<R, E>)
+        tunables.with_tunable(matmul_accelerated::<R, E>)
     };
 
     TUNER.execute(
