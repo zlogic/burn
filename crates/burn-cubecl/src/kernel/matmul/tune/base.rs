@@ -4,7 +4,7 @@ use cubecl::{
         Strategy, SyncLoadingStrategy, kernels::tiling2d::Tiling2dConfig,
         tune_key::MatmulAutotuneKey,
     },
-    tune::{LocalTuner, TunableSet, local_tuner},
+    tune::{AutotuneError, LocalTuner, TunableSet, local_tuner},
 };
 
 use crate::{
@@ -35,7 +35,7 @@ pub fn matmul_autotune<R: CubeRuntime, E: FloatElement + Element>(
     lhs: CubeTensor<R>,
     rhs: CubeTensor<R>,
     out: Option<CubeTensor<R>>,
-) -> CubeTensor<R> {
+) -> Result<CubeTensor<R>, AutotuneError> {
     let output = out.unwrap_or_else(|| init_matmul_output::<R, E>(&lhs, &rhs));
 
     let client = lhs.client.clone();
@@ -52,9 +52,9 @@ pub fn matmul_autotune<R: CubeRuntime, E: FloatElement + Element>(
         &client,
         &tunables,
         (lhs, rhs, output.clone()),
-    );
+    )?;
 
-    output
+    Ok(output)
 }
 
 fn create_key<R: CubeRuntime, E: FloatElement>(

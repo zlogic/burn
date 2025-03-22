@@ -76,6 +76,32 @@ pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> Cub
     out
 }
 
+pub fn nchw_to_nhwc_cube_count(shape: Shape) -> CubeCount {
+    let tiles_per_block = 8;
+    let warp_size = 32;
+    let tile_dim = 16;
+
+    let [batch_size, in_c, h, w] = shape.dims();
+    let hw = h * w;
+
+    let tiles_channel = in_c.div_ceil(tile_dim) as u32;
+    let tiles_hw = hw.div_ceil(tile_dim) as u32;
+
+    let block_tiles_y = Ord::min(tiles_channel.next_power_of_two(), tiles_per_block);
+    let block_tiles_x = Ord::min(tiles_per_block / block_tiles_y, tiles_hw);
+
+    let cube_count_y = tiles_channel.div_ceil(block_tiles_y);
+    let cube_count_x = tiles_hw.div_ceil(block_tiles_x);
+    let cube_count_z = batch_size as u32;
+
+    let cube_dim = CubeDim {
+        x: block_tiles_x * warp_size,
+        y: block_tiles_y,
+        z: 1,
+    };
+    CubeCount::Static(cube_count_x, cube_count_y, cube_count_z)
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 struct ComptimeConfig {
     tiles_x: u32,

@@ -35,12 +35,14 @@ pub fn autotune_reduce<
         .with_tunable(reduce_plane::<Run, In, Out, Rd>)
         .with_tunable(reduce_shared_plane::<Run, In, Out, Rd>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<Run>(&input.client, &input.device),
-        client,
-        &tunables,
-        (input, output, dim),
-    );
+    TUNER
+        .execute(
+            &CubeTuneId::new::<Run>(&input.client, &input.device),
+            client,
+            &tunables,
+            (input, output, dim),
+        )
+        .expect("All autotuners failed")
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize, AutotuneKey)]
@@ -227,12 +229,14 @@ pub fn autotune_sum<Run: CubeRuntime, E: CubeElement>(
         .with_tunable(sum_one_shot::<Run, E, 32>)
         .with_tunable(sum_one_shot::<Run, E, 64>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<Run>(&input.client, &input.device),
-        client,
-        &tunables,
-        input,
-    )
+    TUNER
+        .execute(
+            &CubeTuneId::new::<Run>(&input.client, &input.device),
+            client,
+            &tunables,
+            input,
+        )
+        .expect("All autotuners failed")
 }
 
 pub(crate) fn create_key_sum<Run: CubeRuntime>(input: &CubeTensor<Run>) -> CubeAutotuneKey {

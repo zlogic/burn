@@ -27,12 +27,14 @@ pub fn conv_transpose2d_autotune<R: CubeRuntime, E: FloatElement>(
         .with_tunable(conv_transpose2d_direct::<R, E>)
         .with_tunable(conv_transpose2d_col2im::<R, E>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<R>(&input.client, &input.device),
-        &client,
-        &tune_set,
-        (input, weights, bias, options),
-    )
+    TUNER
+        .execute(
+            &CubeTuneId::new::<R>(&input.client, &input.device),
+            &client,
+            &tune_set,
+            (input, weights, bias, options),
+        )
+        .expect("All autotuners failed")
 }
 
 pub fn create_transpose2d_input<R: CubeRuntime, E: FloatElement>(

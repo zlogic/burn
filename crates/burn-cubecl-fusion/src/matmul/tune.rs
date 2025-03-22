@@ -34,12 +34,14 @@ pub fn fused_matmul_autotune<R: Runtime, BT: CubeElement>(
         .with_tunable(tune_specialized_fused::<R, BT>)
         .with_tunable(tune_double_buffering_fused::<R, BT>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<R>(&optimization.client, &optimization.device),
-        &optimization.client,
-        &tunables,
-        TuneInput::new(context, optimization),
-    );
+    TUNER
+        .execute(
+            &CubeTuneId::new::<R>(&optimization.client, &optimization.device),
+            &optimization.client,
+            &tunables,
+            TuneInput::new(context, optimization),
+        )
+        .expect("All autotuners failed");
 }
 
 pub(crate) fn create_key<R: Runtime>(

@@ -1,6 +1,6 @@
 use super::init_matmul_output;
 use crate::{CubeRuntime, FloatElement, tensor::CubeTensor};
-use cubecl::linalg::matmul::kernels::MatmulLaunchError;
+use cubecl::linalg::matmul::kernels::{MatmulAvailabilityError, MatmulLaunchError};
 
 #[cfg(feature = "autotune")]
 use super::matmul_autotune;
@@ -49,6 +49,11 @@ pub fn matmul<R: CubeRuntime, E: FloatElement>(
             Ok(out)
         }
         #[cfg(feature = "autotune")]
-        MatmulStrategy::Autotune => Ok(matmul_autotune::<R, E>(lhs, rhs, out)),
+        MatmulStrategy::Autotune => match matmul_autotune::<R, E>(lhs, rhs, out) {
+            Ok(out) => Ok(out),
+            Err(err) => Err(MatmulLaunchError::Unavailable(
+                MatmulAvailabilityError::PipelineUnavailable,
+            )),
+        },
     }
 }

@@ -32,12 +32,14 @@ pub fn conv2d_autotune<R: CubeRuntime, E: FloatElement>(
         .with_tunable(conv2d_gemm_cmma_large_m::<R, E>)
         .with_tunable(conv2d_gemm_cmma_balanced::<R, E>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<R>(&input.client, &input.device),
-        &client,
-        &tunables,
-        (input, weights, bias, options),
-    )
+    TUNER
+        .execute(
+            &CubeTuneId::new::<R>(&input.client, &input.device),
+            &client,
+            &tunables,
+            (input, weights, bias, options),
+        )
+        .expect("All autotuners failed")
 }
 
 pub fn create_conv2d_input<R: CubeRuntime, E: FloatElement>(

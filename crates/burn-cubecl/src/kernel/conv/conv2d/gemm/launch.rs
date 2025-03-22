@@ -5,7 +5,7 @@ use burn_tensor::{
     ops::{ConvOptions, conv::calculate_conv_output_size},
 };
 use cubecl::{
-    Feature, flex32,
+    CubeCount, Feature, flex32,
     ir::{Elem, FloatKind},
     linalg::{
         convolution::{
@@ -23,7 +23,7 @@ use half::{bf16, f16};
 
 use crate::{
     CubeElement, CubeRuntime, FloatElement,
-    kernel::{conv::nchw_to_nhwc, into_contiguous},
+    kernel::{conv::nchw_to_nhwc, conv::nchw_to_nhwc_cube_count, into_contiguous},
     ops::{numeric::empty_device, permute, reshape},
     tensor::CubeTensor,
 };
@@ -125,6 +125,13 @@ where
         options.dilation[1],
         width,
     );
+
+    if let CubeCount::Static(x, y, z) = nchw_to_nhwc_cube_count(input.shape.clone()) {
+        let (max_x, max_y, max_z) = R::max_cube_count();
+        if x > max_x || y > max_y || z > max_z {
+            return Err(ConvLaunchError::CubeCountTooLarge);
+        }
+    }
 
     let input = match input.is_contiguous() {
         true => nchw_to_nhwc::<R, SP::EG>(input),

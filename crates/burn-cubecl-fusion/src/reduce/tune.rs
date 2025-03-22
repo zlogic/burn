@@ -39,12 +39,14 @@ pub fn fused_reduce_autotune<R: Runtime, BT: CubeElement>(
         .with_tunable(tune_reduce_plane::<R, BT>)
         .with_tunable(tune_reduce_shared_plane::<R, BT>);
 
-    TUNER.execute(
-        &CubeTuneId::new::<R>(&optimization.client, &optimization.device),
-        &optimization.client,
-        &tunables,
-        TuneInput::new(context, optimization),
-    );
+    TUNER
+        .execute(
+            &CubeTuneId::new::<R>(&optimization.client, &optimization.device),
+            &optimization.client,
+            &tunables,
+            TuneInput::new(context, optimization),
+        )
+        .expect("All autotuners failed");
 }
 
 pub(crate) fn create_key<R: Runtime>(
