@@ -6,7 +6,6 @@ use cubecl::{calculate_cube_count_elemwise, linalg::convolution::ConvLaunchError
 
 use crate::{
     CubeRuntime, FloatElement,
-    element::CubeElement,
     kernel::{
         AddOp,
         conv::index,
@@ -133,18 +132,6 @@ pub(crate) fn batches_per_run(
     Ok(1)
 }
 
-fn empty_device_checked<R: CubeRuntime, E: CubeElement>(
-    client: ComputeClient<R::Server, R::Channel>,
-    device: R::Device,
-    shape: Shape,
-) -> Result<CubeTensor<R>, ConvLaunchError> {
-    let alloc_size = shape.num_elements() * core::mem::size_of::<E>();
-    if alloc_size > client.properties().memory_properties().max_page_size as usize {
-        return Err(ConvLaunchError::Unknown);
-    }
-    Ok(empty_device::<R, E>(client, device, shape))
-}
-
 fn im2col<R: CubeRuntime, E: FloatElement>(
     input: CubeTensor<R>,
     options: ConvOptions<2>,
@@ -152,18 +139,18 @@ fn im2col<R: CubeRuntime, E: FloatElement>(
     kernel_w: usize,
     out_h: usize,
     out_w: usize,
-) -> Result<CubeTensor<R>, ConvLaunchError> {
+) -> CubeTensor<R> {
     let input = into_contiguous(input);
     let [batch_size, in_channels, _, _] = input.shape.dims();
 
     let col_shape_0 = in_channels * kernel_h * kernel_w;
     let col_shape_1 = batch_size * out_h * out_w;
     let shape_col = Shape::new([col_shape_0, col_shape_1]);
-    let columns = empty_device_checked::<R, E>(
+    let columns = empty_device::<R, E>(
         input.client.clone(),
         input.device.clone(),
         shape_col.clone(),
-    )?;
+    );
 
     let num_elems = in_channels * batch_size * out_h * out_w;
     let cube_dim = CubeDim::default();
@@ -199,7 +186,7 @@ fn im2col<R: CubeRuntime, E: FloatElement>(
         )
     };
 
-    Ok(columns)
+    columns
 }
 
 /// Perform a 2D convolution using the GEMM (im2col) algorithm.
@@ -246,8 +233,7 @@ pub fn conv2d_im2col<R: CubeRuntime, E: FloatElement>(
     let mut out = if batches_per_run != batch_size {
         let runs = batch_size / batches_per_run;
         let out_shape = Shape::new([runs, out_channels, batches_per_run, out_h, out_w]);
-        let out =
-            empty_device_checked::<R, E>(input.client.clone(), input.device.clone(), out_shape)?;
+        let out = empty_device::<R, E>(input.client.clone(), input.device.clone(), out_shape);
         let in_shape = Shape::new([runs, batches_per_run, in_channels, in_height, in_width]);
         let input = reshape(input, in_shape);
         let in_shape_run = Shape::new([batches_per_run, in_channels, in_height, in_width]);
@@ -268,8 +254,7 @@ pub fn conv2d_im2col<R: CubeRuntime, E: FloatElement>(
         let out = swap_dims(out, 1, 2);
         reshape(out, Shape::new([batch_size, out_channels, out_h, out_w]))
     } else {
-        let out =
-            empty_device_checked::<R, E>(input.client.clone(), input.device.clone(), matmul_shape)?;
+        let out = empty_device::<R, E>(input.client.clone(), input.device.clone(), matmul_shape);
         execute::<R, E>(input, weight, out.clone(), options, out_h, out_w)?;
         let out = reshape(out, Shape::new([out_channels, batch_size, out_h, out_w]));
         swap_dims(out, 0, 1)
@@ -299,7 +284,7 @@ fn execute_1x1_kernel<R: CubeRuntime, E: FloatElement>(
     let weight = reshape(weight, Shape::new([groups, out_c_per_grp, in_c_per_grp]));
     let in_shape = Shape::new([groups, in_c_per_grp, batch_size * height * width]);
     let input = reshape(input, in_shape);
-    let out = matmul::<R, E>(weight, input, None, MatmulStrategy::default_nested())?;
+    let out = matmul::<R, E>(weight, input, None, MatmulStrategy::default())?;
     let mut out = reshape(out, Shape::new([out_channels, batch_size, height, width]));
 
     if let Some(bias) = bias {
@@ -321,7 +306,7 @@ fn execute<R: CubeRuntime, E: FloatElement>(
     let [out_channels, _, kernel_h, kernel_w] = weight.shape.dims();
     let groups = options.groups;
 
-    let columns = im2col::<R, E>(input, options.clone(), kernel_h, kernel_w, out_h, out_w)?;
+    let columns = im2col::<R, E>(input, options.clone(), kernel_h, kernel_w, out_h, out_w);
     let [col_shape_0, col_shape_1] = columns.shape.dims();
     let col_shape_0 = col_shape_0 / groups;
     let out_c_per_group = out_channels / groups;
@@ -329,7 +314,7 @@ fn execute<R: CubeRuntime, E: FloatElement>(
     let columns = reshape(columns, Shape::new([groups, col_shape_0, col_shape_1]));
     let weight = reshape(weight, Shape::new([groups, out_c_per_group, col_shape_0]));
 
-    matmul::<R, E>(weight, columns, Some(out), MatmulStrategy::default_nested())?;
+    matmul::<R, E>(weight, columns, Some(out), Default::default())?;
 
     Ok(())
 }

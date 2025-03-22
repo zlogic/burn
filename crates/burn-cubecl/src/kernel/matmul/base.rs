@@ -9,27 +9,16 @@ use super::matmul_autotune;
 pub enum MatmulStrategy {
     #[cfg(feature = "autotune")]
     /// Using autotune to choose the best kernel based on runtime information.
-    Autotune(bool),
+    Autotune,
     /// Cube implementation of matmul.
     Cube,
-}
-
-impl MatmulStrategy {
-    pub fn default_nested() -> Self {
-        // if autotune is enabled, default to autotune
-        #[cfg(feature = "autotune")]
-        return MatmulStrategy::Autotune(true);
-
-        #[cfg(not(feature = "autotune"))]
-        MatmulStrategy::Cube
-    }
 }
 
 impl Default for MatmulStrategy {
     fn default() -> Self {
         // if autotune is enabled, default to autotune
         #[cfg(feature = "autotune")]
-        return MatmulStrategy::Autotune(false);
+        return MatmulStrategy::Autotune;
 
         #[cfg(not(feature = "autotune"))]
         MatmulStrategy::Cube
@@ -60,13 +49,11 @@ pub fn matmul<R: CubeRuntime, E: FloatElement>(
             Ok(out)
         }
         #[cfg(feature = "autotune")]
-        MatmulStrategy::Autotune(from_im2col) => {
-            match matmul_autotune::<R, E>(lhs, rhs, out, from_im2col) {
-                Ok(out) => Ok(out),
-                Err(err) => Err(MatmulLaunchError::Unavailable(
-                    MatmulAvailabilityError::PipelineUnavailable,
-                )),
-            }
-        }
+        MatmulStrategy::Autotune => match matmul_autotune::<R, E>(lhs, rhs, out) {
+            Ok(out) => Ok(out),
+            Err(err) => Err(MatmulLaunchError::Unavailable(
+                MatmulAvailabilityError::PipelineUnavailable,
+            )),
+        },
     }
 }

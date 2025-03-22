@@ -78,7 +78,6 @@ pub fn nchw_to_nhwc<R: CubeRuntime, E: CubeElement>(input: CubeTensor<R>) -> Cub
 
 pub fn nchw_to_nhwc_cube_count(shape: Shape) -> CubeCount {
     let tiles_per_block = 8;
-    let warp_size = 32;
     let tile_dim = 16;
 
     let [batch_size, in_c, h, w] = shape.dims();
